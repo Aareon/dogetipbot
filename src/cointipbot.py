@@ -16,7 +16,7 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc, ctb_user
+from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc, ctb_user, simulated_reddit
 
 import gettext, locale, logging, praw, smtplib, sys, time, traceback, yaml
 from email.mime.text import MIMEText
@@ -58,7 +58,10 @@ class CointipBot(object):
         handlers = {}
         for l in levels:
             if self.conf.logs.levels[l].enabled:
-                handlers[l] = logging.FileHandler(self.conf.logs.levels[l].filename, mode='a' if self.conf.logs.levels[l].append else 'w')
+                if self.test:
+                    handlers[l] = logging.FileHandler(self.conf.logs.levels[l].test_filename, mode='a' if self.conf.logs.levels[l].append else 'w')
+                else:
+                    handlers[l] = logging.FileHandler(self.conf.logs.levels[l].filename, mode='a' if self.conf.logs.levels[l].append else 'w')
                 handlers[l].setFormatter(logging.Formatter(self.conf.logs.levels[l].format))
 
         # Set handlers
@@ -80,11 +83,15 @@ class CointipBot(object):
         """
         Returns a Python object with CointipBot configuration
         """
-        lg.debug('CointipBot::parse_config(): parsing config files...')
+        if self.test:
+            lg.debug('CointipBot::parse_config(): parsing test config files...')
+            prefix = './test_conf/'
+        else:
+            lg.debug('CointipBot::parse_config(): parsing config files...')
+            prefix='./conf/'
 
         conf = {}
         try:
-            prefix='./conf/'
             for i in ['coins', 'db', 'exchanges', 'fiat', 'keywords', 'logs', 'misc', 'reddit', 'regex']:
                 lg.debug("CointipBot::parse_config(): reading %s%s.yml", prefix, i)
                 conf[i] = yaml.load(open(prefix+i+'.yml'))
@@ -103,7 +110,10 @@ class CointipBot(object):
         """
         lg.debug('CointipBot::connect_db(): connecting to database...')
 
-        dsn = "mysql+mysqldb://%s:%s@%s:%s/%s?charset=utf8" % (self.conf.db.auth.user, self.conf.db.auth.password, self.conf.db.auth.host, self.conf.db.auth.port, self.conf.db.auth.dbname)
+        if self.test:
+            dsn = "mysql+mysqldb://%s:%s@%s:%s/%s?charset=utf8" % (self.conf.db.auth.user, self.conf.db.auth.password, self.conf.db.auth.host, self.conf.db.auth.port, self.conf.db.auth.test_dbname)
+        else:
+            dsn = "mysql+mysqldb://%s:%s@%s:%s/%s?charset=utf8" % (self.conf.db.auth.user, self.conf.db.auth.password, self.conf.db.auth.host, self.conf.db.auth.port, self.conf.db.auth.dbname)
         dbobj = ctb_db.CointipBotDatabase(dsn)
 
         try:
@@ -121,10 +131,13 @@ class CointipBot(object):
         """
         lg.debug('CointipBot::connect_reddit(): connecting to Reddit...')
 
-        conn = praw.Reddit(user_agent = self.conf.reddit.auth.user)
-        conn.login(self.conf.reddit.auth.user, self.conf.reddit.auth.password)
-
-        lg.info("CointipBot::connect_reddit(): logged in to Reddit as %s", self.conf.reddit.auth.user)
+        if self.test:
+            lg.info("CointipBot::connect_reddit(): Testing mode. Using simulated Reddit.")
+            conn = simulated_reddit.connectToSimulatedReddit()
+        else:
+            conn = praw.Reddit(user_agent = self.conf.reddit.auth.user)
+            conn.login(self.conf.reddit.auth.user, self.conf.reddit.auth.password)
+            lg.info("CointipBot::connect_reddit(): logged in to Reddit as %s", self.conf.reddit.auth.user)
         return conn
 
     def self_checks(self):
@@ -132,7 +145,7 @@ class CointipBot(object):
         Run self-checks before starting the bot
         """
 
-        # Ensure bot is a registered user
+        # Ensure bot is a registered user (in db)
         b = ctb_user.CtbUser(name=self.conf.reddit.auth.user.lower(), ctb=self)
         if not b.is_registered():
             b.register()
@@ -479,11 +492,17 @@ class CointipBot(object):
         server.sendmail(self.conf.misc.notify.addr_from, self.conf.misc.notify.addr_to, msg.as_string())
         server.quit()
 
-    def __init__(self, self_checks=True, init_reddit=True, init_coins=True, init_exchanges=True, init_db=True, init_logging=True):
+    def __init__(self, test=False, self_checks=True, init_reddit=True, init_coins=True, init_exchanges=True, init_db=True, init_logging=True):
         """
         Constructor. Parses configuration file and initializes bot.
         """
+        #self.test = test
+        self.test = True #TESTING
+
         lg.info("CointipBot::__init__()...")
+        if self.test:
+            lg.info("Running in testing mode. Conf files in test_conf. Logs to test_*.Connecting to a simulated Reddit. Writing to test_db")
+            lg.info("Testing mode is primarily to run without Reddit.")
 
         # Configuration
         self.conf = self.parse_config()
@@ -519,11 +538,11 @@ class CointipBot(object):
         # Reddit
         if init_reddit:
             self.reddit = self.connect_reddit()
-            self.init_subreddits()
+            #self.init_subreddits() #not needed if only /u/?
             # Regex for Reddit messages
             ctb_action.init_regex(self)
 
-        # Self-checks
+        # Self-checks (all local checks)
         if self_checks:
             self.self_checks()
 
@@ -554,11 +573,6 @@ class CointipBot(object):
 
                 # Check personal messages
                 self.check_inbox()
-
-                # Check subreddit comments for tips
-                # or not. fuck that. u mentions only
-#                if self.conf.reddit.scan.my_subreddits or hasattr(self.conf.reddit.scan, 'these_subreddits'):
-#                    self.check_subreddits()
 
                 # Sleep
                 lg.debug("CointipBot::main(): sleeping for %s seconds...", self.conf.misc.times.sleep_seconds)

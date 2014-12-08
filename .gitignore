@@ -38,3 +38,7 @@ nosetests.xml
 *.log*
 pifkoin
 conf
+test_conf
+
+# vim
+*.swp

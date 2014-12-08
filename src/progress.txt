@@ -1,0 +1,3 @@
+rpcport, rpcuser, rpcpassword required in dogecoin.conf.
+Create mysqldb separately according to conf.
+Run altcointip.sql
