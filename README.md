@@ -1,3 +1,20 @@
+# A fork of Dogetipbot to facilitate asset tipping on Reddit.
+
+I've unfortunately run into time constraints and can't continue development on the asset tipbot, but committing what I've done so far.
+
+I'll outline the changes I was aiming for:
+1) Simulated Reddit. This is simply a testing tool. It recreates a basic reddit environment as if it was connected through praw. With each request to reddit, it returns similarly formatted data, so that you can test the asset tipbot without having to be connected to Reddit, and have a tipbot activated account on the ready. Additionally, when in a testing environement it also uses test_conf instead of normal conf.
+
+There are several ways to add asset support. The one I've chosen is a bit of a hack with this codebase that will allow it to work without much effort (but isn't that clean). You don't have to rewrite the phrase regex matches. The idea is to have REGEX_COIN match an alphabet characters "[a-zA-Z]+" instead of the usual "doge, dogecoin, etc". It would thus match any alphabet characters in the "coin" part of the altcointip phrasing. ie "+/u/partybot 500 NACHOS" or "+/u/partyboy 500 doge" or "+/u/partybot 500 oaimwoimadw". When matched, it would then check with the original coin regex whether it is just dogecoin itself. ie is "NACHO" == "doge"? Is "doge" == "doge"? If so, it would then transfer the coins with the normal dogecoind. If it is not doge itself, it would then attempt to send the asset through dogepartyd. If there is an error, it wouldn't parse. In other words, as usual, dogepartyd would let the tipbot know there is either not enough or that the person who has the asset do not own it. For scalability, the additional option would be to store available assets by checking every 15min for new ones (get_asset_names). Luckily get_asset_names is not restricted to a certain amount (which is returned). Additionally, for more scalability, because new assets that are sent to the tipbot, would just then check each time since assets would not be sendable otherwise.
+
+Potential problems:
+1) Not sure what happens if the tipbot stores a lot of assets (get_balances only returns a 1000).
+2) Depending on the desire to ad market information, doing conversions between asset prices to fiat IS possible. This will require dogeblockd as well. I'd rather just keep it out for now. Low liquidity in asset tipping is not ideal though (skews the use of fiat denomination).
+
+I've also started documenting the process to get a full setup running. It's quite extensive. You required a host of services to be synced properly: Dogecoind, Dogepartyd, Insight, Mongo, MySQL, etc. If you have any issues, don't hesitate to ask for help. I might have run into issues. The Dogeparty docker information is very useful (by Lars), however Dogeparty wasn't really set up to work on mac natively, so it requires quite some strong-arming to make it play nice.
+
+----
+((OLD README))
 # It's dogetipbot!
 
 ## Introduction
