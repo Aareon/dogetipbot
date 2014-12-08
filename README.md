@@ -13,6 +13,10 @@ Potential problems:
   
 I've also started documenting the process to get a full setup running. It's quite extensive. You required a host of services to be synced properly: Dogecoind, Dogepartyd, Insight, Mongo, MySQL, etc. If you have any issues, don't hesitate to ask for help. I might have run into issues. The Dogeparty docker information is very useful (by Lars), however Dogeparty wasn't really set up to work on mac natively, so it requires quite some strong-arming to make it play nice.  
 
+##Running Dogeparty on Mac OS X.
+
+Here's the long install process as well as conf files that I went through to get it to run on OS X. https://gist.github.com/simondlr/9871056d4cb232a8aa16
+
 ----
 ((OLD README))
 # It's dogetipbot!
