@@ -6,12 +6,13 @@
 # * Then run this script, specifying coin (such as "python _add_coin.py btc")
 # * After this script has finished, you can reusme the tip bot normally
 
+from __future__ import print_function
 import cointipbot, logging, sys
 from ctb import ctb_coin, ctb_misc
 
-if not len(sys.argv) == 2:
-        print "Usage: %s COIN" % sys.argv[0]
-        print "(COIN refers to ctb.conf[COIN], a hash location in coins.yml)"
+if len(sys.argv) != 2:
+        print("Usage: %s COIN" % sys.argv[0])
+        print("(COIN refers to ctb.conf[COIN], a hash location in coins.yml)")
         sys.exit(1)
 
 coin = sys.argv[1]
